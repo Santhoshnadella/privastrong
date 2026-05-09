@@ -1,6 +1,6 @@
 # 🛡️ PrivaStrong: Advanced Image Provenance & Digital Self-Defense
 
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/release/python-3110/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
@@ -117,7 +117,7 @@ I am looking for:
 ---
 
 ## 📜 License
-Distributed under the **Apache License 2.0**. See `LICENSE` for more information.
+Distributed under the **MIT License**. See `LICENSE` for more information.
 
 ---
 *Built with ❤️ to protect the vulnerable.*
