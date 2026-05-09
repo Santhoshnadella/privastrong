@@ -6,7 +6,7 @@ FastAPI implementation with all endpoints
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Header, status
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing import Optional, List, Dict
 import uuid
 from datetime import datetime
@@ -49,6 +49,12 @@ class ImageUploadResponse(BaseModel):
     fingerprints: Dict
     storage_url: str
     created_at: str
+
+    @validator('image_id', 'watermark_id')
+    def validate_uuids(cls, v):
+        if len(v) < 32:
+            raise ValueError("Invalid ID format")
+        return v
 
 
 class EventContext(BaseModel):
@@ -139,11 +145,16 @@ def get_services(db=Depends(get_db)):
 
 @app.post("/api/v1/auth/login", response_model=Token)
 async def login_for_access_token(
-    form_data: OAuth2PasswordRequestForm = Depends()
+    _ = Depends(rate_limit)
 ):
     """
     Authenticate user and return JWT token
     """
+    # Rate limit login attempts
+    login_key = f"login_attempt:{form_data.username}"
+    if int(redis_client.get(login_key) or 0) > 5:
+        raise HTTPException(status_code=429, detail="Too many failed login attempts")
+
     # In production, check against database
     # For now, using the mock database from security.py
     from security import MOCK_USERS_DB, pwd_context
@@ -468,6 +479,18 @@ async def health_check():
 async def metrics():
     """Prometheus metrics endpoint"""
     return JSONResponse(content=generate_latest().decode('utf-8'))
+
+
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    """Add production security headers to every response"""
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = "default-src 'self'"
+    return response
 
 
 # Run with: uvicorn api.py --reload

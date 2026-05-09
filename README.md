@@ -1,5 +1,7 @@
 # 🛡️ PrivaStrong: Advanced Image Provenance & Digital Self-Defense
 
+![PrivaStrong Logo](file:///C:/Users/Santosh/.gemini/antigravity/brain/64c389df-6106-4487-babe-3de3f02d813c/privastrong_logo_1778359740209.png)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/release/python-3110/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
@@ -66,6 +68,19 @@ graph TD
     I[OSINT Worker] --> J[Google Vision / TinEye]
     J --> F
 ```
+
+---
+
+## 🔒 Security & Production Hardening
+
+PrivaStrong has undergone a comprehensive security audit and hardening process:
+
+- **Identity Security**: Enforced mandatory `SECRET_KEY` in production and removed all mock users from the production environment.
+- **Network Protection**: All database and monitoring services (Prometheus, Grafana) are bound to `localhost` within the container network.
+- **API Defense**: Implemented Redis-based rate limiting for both uploads and authentication attempts.
+- **Content Security**: Added production-grade security headers (`X-Content-Type-Options`, `X-Frame-Options`, `CSP`) and Pydantic input validation.
+- **Container Hardening**: The system runs as a non-root user in a hardened Debian-based environment.
+- **Dependency Safety**: All libraries updated to patch known CVEs (e.g., `cryptography >= 43.0.0`).
 
 ---
 

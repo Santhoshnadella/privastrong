@@ -1,44 +1,39 @@
-FROM python:3.11-slim
+# Hardened Production Dockerfile
+FROM python:3.11-slim-bookworm
 
-# Set working directory
-WORKDIR /app
+# Set build arguments
+ARG USER_ID=1000
+ARG GROUP_ID=1000
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    libpq-dev \
-    libgomp1 \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
-COPY requirements.txt .
+# Create a non-root user for security
+RUN groupadd -g ${GROUP_ID} appuser && \
+    useradd -l -u ${USER_ID} -g appuser -m -s /bin/bash appuser
 
-# Install Python dependencies
+WORKDIR /app
+
+# Copy requirements first to leverage Docker cache
+COPY --chown=appuser:appuser requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY fingerprinting.py .
-COPY watermarking.py .
-COPY tracking.py .
-COPY derivative_detection.py .
-COPY reentry_detection.py .
-COPY api.py .
-COPY integration_example.py .
+COPY --chown=appuser:appuser . .
 
-# Create necessary directories
-RUN mkdir -p /app/storage /app/models /app/logs
+# Set permissions
+RUN mkdir -p /app/storage && chown -R appuser:appuser /app/storage
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1
-ENV TRANSFORMERS_CACHE=/app/models
-ENV HF_HOME=/app/models
-
-# Expose port
-EXPOSE 8000
+# Switch to non-root user
+USER appuser
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD curl -f http://localhost:8000/health || exit 1
 
-# Run the application
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+EXPOSE 8000
+
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,154 +1,48 @@
 version: '3.8'
 
 services:
-  # PostgreSQL database with pgvector extension
-  postgres:
-    image: ankane/pgvector:latest
-    container_name: image_provenance_db
+  db:
+    image: ankane/pgvector
     environment:
+      # ENFORCED: Must be set in .env
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD environment variable is required}
       POSTGRES_DB: image_provenance
-      POSTGRES_USER: provenance_user
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-secure_password_change_me}
-      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_USER: postgres
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432" # Bind to localhost for security
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
-    networks:
-      - provenance_network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U provenance_user -d image_provenance"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
-  # Redis for caching and rate limiting
   redis:
     image: redis:7-alpine
-    container_name: image_provenance_redis
     ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - provenance_network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
+      - "127.0.0.1:6379:6379"
 
-  # FastAPI application
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: image_provenance_api
+    build: .
     environment:
-      DATABASE_URL: postgresql://provenance_user:${DB_PASSWORD:-secure_password_change_me}@postgres:5432/image_provenance
-      REDIS_URL: redis://redis:6379
-      API_HOST: 0.0.0.0
-      API_PORT: 8000
-      STORAGE_PATH: /app/storage
-      CLIP_MODEL_CACHE: /app/models
+      - DATABASE_URL=postgresql://postgres:${DB_PASSWORD}@db/image_provenance
+      - REDIS_URL=redis://redis:6379
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
+    depends_on:
+      - db
+      - redis
     ports:
       - "8000:8000"
-    volumes:
-      - ./storage:/app/storage
-      - ./models:/app/models
-      - ./logs:/app/logs
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - provenance_network
-    restart: unless-stopped
 
-  # Nginx reverse proxy
-  nginx:
-    image: nginx:alpine
-    container_name: image_provenance_nginx
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro
-    depends_on:
-      - api
-    networks:
-      - provenance_network
-    restart: unless-stopped
-
-  # Background worker for async processing
-  worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: image_provenance_worker
-    command: python worker.py
-    environment:
-      DATABASE_URL: postgresql://provenance_user:${DB_PASSWORD:-secure_password_change_me}@postgres:5432/image_provenance
-      REDIS_URL: redis://redis:6379
-      WORKER_CONCURRENCY: 4
-    volumes:
-      - ./storage:/app/storage
-      - ./models:/app/models
-      - ./logs:/app/logs
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - provenance_network
-    restart: unless-stopped
-
-  # Prometheus for monitoring
   prometheus:
-    image: prom/prometheus:latest
-    container_name: image_provenance_prometheus
-    ports:
-      - "9090:9090"
+    image: prom/prometheus
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    networks:
-      - provenance_network
-    restart: unless-stopped
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "127.0.0.1:9090:9090" # Bind to localhost only
 
-  # Grafana for visualization
   grafana:
-    image: grafana/grafana:latest
-    container_name: image_provenance_grafana
-    ports:
-      - "3000:3000"
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
-      GF_INSTALL_PLUGINS: grafana-piechart-panel
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
-      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    image: grafana/grafana
     depends_on:
       - prometheus
-    networks:
-      - provenance_network
-    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000" # Bind to localhost only
 
 volumes:
   postgres_data:
-    driver: local
-  redis_data:
-    driver: local
-  prometheus_data:
-    driver: local
-  grafana_data:
-    driver: local
-
-networks:
-  provenance_network:
-    driver: bridge
