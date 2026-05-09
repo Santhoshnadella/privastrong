@@ -1,6 +1,6 @@
 # 🛡️ PrivaStrong: Advanced Image Provenance & Digital Self-Defense
 
-![PrivaStrong Logo](file:///C:/Users/Santosh/.gemini/antigravity/brain/64c389df-6106-4487-babe-3de3f02d813c/privastrong_logo_1778359740209.png)
+![PrivaStrong Logo](./assets/logo.png)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/release/python-3110/)
